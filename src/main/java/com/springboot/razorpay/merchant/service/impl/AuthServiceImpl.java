@@ -10,15 +10,16 @@ import com.springboot.razorpay.merchant.entity.Merchant;
 import com.springboot.razorpay.merchant.repository.AppUserRepository;
 import com.springboot.razorpay.merchant.repository.MerchantRepository;
 import com.springboot.razorpay.merchant.service.AuthService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
     private final AppUserRepository appUserRepository;
