@@ -1,6 +1,7 @@
 package com.springboot.razorpay.payment.service.impl;
 
 import com.springboot.razorpay.common.enums.OrderStatus;
+import com.springboot.razorpay.common.enums.PaymentEvent;
 import com.springboot.razorpay.common.enums.PaymentStatus;
 import com.springboot.razorpay.common.exception.BusinessRuleViolationException;
 import com.springboot.razorpay.common.exception.ResourceNotFoundException;
@@ -15,11 +16,13 @@ import com.springboot.razorpay.payment.mapper.PaymentMapper;
 import com.springboot.razorpay.payment.repository.OrderRepository;
 import com.springboot.razorpay.payment.repository.PaymentRepository;
 import com.springboot.razorpay.payment.service.PaymentService;
+import com.springboot.razorpay.payment.statemachine.PaymentTransitionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -30,6 +33,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentGatewayRouter paymentGatewayRouter;
     private final PaymentMapper paymentMapper;
+    private final PaymentTransitionService paymentTransitionService;
 
     @Override
     @Transactional
@@ -63,7 +67,8 @@ public class PaymentServiceImpl implements PaymentService {
         switch (result) {
             case PaymentResult.Pending pending -> payment.setProcessorReference(pending.registrationRef());
             case PaymentResult.Failure failure -> {
-                payment.setStatus(PaymentStatus.FAILED);
+//                payment.setStatus(PaymentStatus.FAILED);
+                paymentTransitionService.apply(payment, PaymentEvent.AUTHORIZE_FAIL);
                 payment.setErrorCode(failure.errorCode());
                 payment.setErrorDescription(failure.errorDescription());
             }
@@ -72,6 +77,36 @@ public class PaymentServiceImpl implements PaymentService {
         }
         payment =  paymentRepository.save(payment);
         orderRepository.save(order);
+
+        return paymentMapper.toPaymentResponse(payment);
+    }
+
+    @Override
+    public PaymentResponse capture(UUID merchantId, UUID paymentId) {
+        Payment payment = paymentRepository.findByIdAndMerchantId(paymentId, merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
+
+        if(payment.getStatus() != PaymentStatus.CREATED){
+            throw new BusinessRuleViolationException("PAYMENT_NOT_CAPTUREABLE",
+                    "Payment is not in valid state for capture. Current status: "+ payment.getStatus());
+        }
+
+        paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_REQUEST);
+
+        PaymentResult result = paymentGatewayRouter.capture(payment.getMethod(), paymentId);
+
+        if(result instanceof PaymentResult.Success success) {
+            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_SUCCESS);
+            payment.setCapturedAt(LocalDateTime.now());
+            log.info("Payment captured , paymentId: " + paymentId);
+        }
+        else if(result instanceof PaymentResult.Failure failure) {
+            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_FAIL);
+            payment.setErrorCode(failure.errorCode());
+            payment.setErrorDescription(failure.errorDescription());
+            log.warn("Payment capture failed , paymentId: " + paymentId);
+        }
+        payment =  paymentRepository.save(payment);
 
         return paymentMapper.toPaymentResponse(payment);
     }
