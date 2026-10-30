@@ -1,13 +1,20 @@
 package com.springboot.razorpay.vault.entity;
 
 import com.springboot.razorpay.common.entity.BaseEntity;
+import com.springboot.razorpay.common.enums.CardBrand;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "vault_card")
+@Builder
+@Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class VaultCard extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,7 +38,7 @@ public class VaultCard extends BaseEntity {
     // DEK = decrypt(encrypted_dek, master_key) , PAN = decrypt(encrypted_pan, DEK)
 
     @Column(nullable = false)
-    private String brand; // brand of the card : VISA , RUPAY
+    private CardBrand brand; // brand of the card : VISA , RUPAY
 
     @Column(nullable = false)
     private String expiryMonth;

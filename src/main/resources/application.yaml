@@ -15,3 +15,22 @@ spring:
 
 vault:
   master-key: abr2489yhg39847ygg934yu34tv9bt67bvtg534bgtv
+
+# These are my configurations for simulator. You can change the values to test different scenarios.
+payment:
+  simulator:
+    poll-interval-ms: 5000
+    chaos-mode: NORMAL
+    method:
+      CARD:
+        min-delay-seconds: 2
+        max-delay-seconds: 6
+        success-rate: 90
+      UPI:
+        min-delay-seconds: 1
+        max-delay-seconds: 3
+        success-rate: 95
+      NET_BANKING:
+        min-delay-seconds: 4
+        max-delay-seconds: 10
+        success-rate: 80

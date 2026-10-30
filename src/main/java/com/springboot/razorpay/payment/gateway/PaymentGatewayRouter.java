@@ -14,10 +14,11 @@ import java.util.UUID;
 public class PaymentGatewayRouter {
 
     private final Map<PaymentMethod, PaymentAdapter> paymentAdapters;
+
     public PaymentResult initiate(PaymentRequest request){
-        PaymentAdapter adapter = paymentAdapters.get(request.getPaymentMethod());
+        PaymentAdapter adapter = paymentAdapters.get(request.paymentMethod());
         if(adapter == null){
-            throw new IllegalArgumentException("Payment method not supported for: " + request.getPaymentMethod());
+            throw new IllegalArgumentException("Payment method not supported for: " + request.paymentMethod());
         }
         return adapter.initiate(request);
     }

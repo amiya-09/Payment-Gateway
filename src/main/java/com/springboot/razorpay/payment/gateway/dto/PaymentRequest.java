@@ -10,15 +10,14 @@ import lombok.Setter;
 import java.util.Map;
 import java.util.UUID;
 
-@Setter
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
-public class PaymentRequest {
-    UUID paymentId;
-    UUID orderId;
-    UUID merchantId;
-    Money amount;
-    PaymentMethod paymentMethod;
-    Map<String, Object> methodDetails;
+
+public record PaymentRequest(
+        UUID paymentId,
+        UUID orderId,
+        UUID merchantId,
+        Money amount,
+        PaymentMethod paymentMethod,
+        Map<String, Object> methodDetails
+) {
+
 }

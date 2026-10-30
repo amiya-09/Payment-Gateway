@@ -72,12 +72,14 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.setErrorCode(failure.errorCode());
                 payment.setErrorDescription(failure.errorDescription());
             }
-            case null, default -> {
+            case PaymentResult.Success success -> {
+                log.warn("Invalid State");
+                return null;
             }
         }
         payment =  paymentRepository.save(payment);
         orderRepository.save(order);
-
+        // TODO: send an outbox (kafka event)
         return paymentMapper.toPaymentResponse(payment);
     }
 
