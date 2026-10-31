@@ -18,7 +18,7 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentService paymentService;
-    UUID merchantId = UUID.fromString("1f6caca9-cab9-40cd-a491-a714146e5a55"); // TODO: replace it with MerchantContext
+    UUID merchantId = UUID.fromString("042e4fe8-3156-41c4-b44c-42f3e7ea75e9"); // TODO: replace it with MerchantContext
     @PostMapping
     public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody PaymentInitRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)

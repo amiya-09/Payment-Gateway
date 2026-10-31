@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("v1/merchants/{merchantId/api-keys")
+@RequestMapping("v1/merchants/{merchantId}/api-keys")
 @RequiredArgsConstructor
 public class ApiKeyController {
 

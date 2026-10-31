@@ -22,10 +22,10 @@ public class NetBankingAdapter implements PaymentAdapter {
 
     @Override
     public PaymentResult initiate(PaymentRequest request) {
-        log.info("Initiate Payment with NetBankingAdapter, paymentId: {}", request.getPaymentId());
+        log.info("Initiate Payment with NetBankingAdapter, paymentId: {}", request.paymentId());
         try {
-            PaymentProcessorRequest paymentProcessorRequest = PaymentProcessorRequest.nonCard(request.getPaymentId(), PaymentMethod.NETBANKING,
-                    request.getAmount(), request.getMethodDetails());
+            PaymentProcessorRequest paymentProcessorRequest = PaymentProcessorRequest.nonCard(request.paymentId(), PaymentMethod.NETBANKING,
+                    request.amount(), request.methodDetails());
 
             PaymentProcessorResponse paymentProcessorResponse =
                     paymentProcessorRouter.charge(paymentProcessorRequest);
@@ -34,10 +34,10 @@ public class NetBankingAdapter implements PaymentAdapter {
                 case PaymentProcessorResponse.Failure failure ->
                         new PaymentResult.Failure(failure.errorCode(), failure.errorDescription());
                 case PaymentProcessorResponse.Success success -> new PaymentResult.Success(success.bankReference());
-                case PaymentProcessorResponse.Pending pending -> new PaymentResult.Pending(pending.prcessorReference());
+                case PaymentProcessorResponse.Pending pending -> new PaymentResult.Pending(pending.processorReference());
             };
         } catch (Exception e) {
-            log.warn("NetBanking failed, paymentId: {}", request.getPaymentId());
+            log.warn("NetBanking failed, paymentId: {}", request.paymentId());
             return new PaymentResult.Failure("NBK_FAILED", e.getMessage());
         }
     }

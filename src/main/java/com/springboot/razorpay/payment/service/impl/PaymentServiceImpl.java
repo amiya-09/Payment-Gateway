@@ -56,6 +56,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .amount(order.getAmount())
                 .status(PaymentStatus.CREATED)
                 .method(request.method())
+                .idempotencyKey(UUID.randomUUID().toString())
                 .methodDetails(request.methodDetails())
                 .build();
         payment = paymentRepository.save(payment);
@@ -63,7 +64,9 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentRequest paymentRequest = new PaymentRequest(payment.getId(), request.orderId(),
                 merchantId, order.getAmount(), request.method(), request.methodDetails());
 
+        paymentTransitionService.apply(payment, PaymentEvent.AUTHORIZE_ATTEMPT);
         PaymentResult result = paymentGatewayRouter.initiate(paymentRequest);
+
         switch (result) {
             case PaymentResult.Pending pending -> payment.setProcessorReference(pending.registrationRef());
             case PaymentResult.Failure failure -> {
@@ -111,6 +114,54 @@ public class PaymentServiceImpl implements PaymentService {
         payment =  paymentRepository.save(payment);
 
         return paymentMapper.toPaymentResponse(payment);
+    }
+
+    @Override
+    @Transactional
+    public void resolveAuthorization(UUID paymentId, boolean approve, String bankRef, String errorCode, String errorDescription) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
+
+        if(payment.getStatus() != PaymentStatus.AUTHORIZING){
+            throw new BusinessRuleViolationException("PAYMENT_NOT_RESOLVABLE",
+                    "Payment is not in valid state for resolution. Current status: "+ payment.getStatus());
+        }
+
+        OrderRecord orderRecord = payment.getOrder();
+
+        if(approve) {
+            paymentTransitionService.apply(payment, PaymentEvent.AUTHORIZE_SUCCESS);
+            payment.setBankReference(bankRef);
+            payment.setAuthorizedAt(LocalDateTime.now());
+            log.info("Payment authorization approved , paymentId: " + paymentId);
+
+            // Auto-capture
+            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_REQUEST);
+            PaymentResult captureResult = paymentGatewayRouter.capture(payment.getMethod(), paymentId);
+            // So we get the response of payment capture
+            if(captureResult instanceof PaymentResult.Success success) {
+                // So if the capture was successful then we do the following:
+                paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_SUCCESS);
+                payment.setCapturedAt(LocalDateTime.now());
+                orderRecord.setOrderStatus(OrderStatus.PAID);
+                log.info("Payment captured , paymentId: " + paymentId);
+            } else if(captureResult instanceof PaymentResult.Failure failure) {
+                paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_FAIL);
+                payment.setErrorCode(failure.errorCode());
+                payment.setErrorDescription(failure.errorDescription());
+            }
+        } else {
+            // what if the payment was not approved on the bank's end,
+            // in that case we put the payment in the authorized fail state
+            paymentTransitionService.apply(payment, PaymentEvent.AUTHORIZE_FAIL);
+            payment.setErrorCode(errorCode);
+            payment.setErrorDescription(errorDescription);
+            log.warn("Payment authorization declined , paymentId: " + paymentId);
+        }
+        paymentRepository.save(payment);
+        orderRepository.save(orderRecord);
+
+        // TODO: send an outbox (kafka event)
     }
 
 }

@@ -33,6 +33,7 @@ public class PaymentTransitionLog extends BaseEntity {
     private PaymentStatus fromStatus;
 
     @Column(name = "event", nullable = false, length = 100)
+    @Enumerated(EnumType.STRING)
     private PaymentEvent event;
 
     @Enumerated(EnumType.STRING)
