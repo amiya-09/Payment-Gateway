@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("v1/merchants/api-keys")
+@RequestMapping("/v1/merchants/api-keys")
 @RequiredArgsConstructor
 @Slf4j
 public class ApiKeyController {
