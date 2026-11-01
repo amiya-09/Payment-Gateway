@@ -44,12 +44,12 @@ public class VaultServiceImpl implements VaultService {
         String lastFour = request.pan().substring(request.pan().length() - 4);
         String bin = request.pan().substring(0, 6);
         CardBrand cardBrand = detectBrand(request.pan());
-        // Let's do the actual encryption
+        // Encrypt PAN with a fresh data-encryption key (DEK).
         byte[] dek = KeyGenerators.secureRandom(32).generateKey(); // This generated a 32 byte long dek
         byte[] encryptedPan = VaultEncryptionConfig.panEncryptor(dek).encrypt(request.pan().getBytes(StandardCharsets.UTF_8));
-        // Now the pan has been encrypted using dek, but we also want to store this dek so that later on when we want to decrypt it we can decrypt it using this dek
-        // but if I store this dek directly as it is in the database, then anyone who has access to the database will know what the actual key is and can decrypt the pan,
-        // so we need to encrypt this dek using another secret key and then store it in the database
+        // PAN is encrypted with DEK, but DEK must also be stored safely for future decryption.
+        // Storing raw DEK is unsafe, so encrypt DEK with the master-key encryptor first.
+        // Persist only encrypted DEK and encrypted PAN.
         byte[] encryptedDek = dekEncryptor.encrypt(dek);
         VaultCard vaultCard = vaultCardRepository.save(VaultCard.builder()
                 .brand(cardBrand)
@@ -74,22 +74,21 @@ public class VaultServiceImpl implements VaultService {
 
     @Override
     public PaymentProcessorResponse charge(UUID paymentId, String token, Money amount, Map<String, Object> methodDetails) {
-        // We take the token and try to decrypt it
+        // Resolve token, then decrypt card data needed by the processor.
         CardToken cardToken = cardTokenRepository.findByTokenAndRevokedAtIsNull(token)
                 .orElseThrow(() -> new ResourceNotFoundException("CardToken", token));
-        // We got the card token and inside the card token we have vault card
+        // Token points to a vault card record containing encrypted values.
         VaultCard vaultCard = cardToken.getVaultCard();
         byte[] panBytes = null;
-        // we need to get the dek , we already have the dek stored inside the vault card if you remember, but we want the actual dek
+        // Decrypt stored encrypted DEK to get usable DEK for PAN decryption.
         try {
             byte[] dek = dekEncryptor.decrypt(vaultCard.getEncryptedDek());
             panBytes = VaultEncryptionConfig.panEncryptor(dek).decrypt(vaultCard.getEncryptedPan());
             String pan = new String(panBytes, StandardCharsets.UTF_8); // this is the pan that the banks, card networks actually understand
             String expiry = vaultCard.getExpiryMonth() + "/" + vaultCard.getExpiryYear();
-            // we need to call our payment processor from here. The adaptor is not going to call the payment processor,
-            // this vault service will call the payment processor because now it has information, it needs to provide that information to the
-            // payment processor and then payment processor will do call the third party systems like the payment network, card network,
-            // then it will return the payment processor response. So first we are going to create the payment processor request.
+            // Vault service invokes processor here because it holds decrypted card details.
+            // Adapter does not decrypt PAN; it only forwards payment intent.
+            // Build processor request, call downstream network, and return the response.
             PaymentProcessorRequest paymentProcessorRequest = PaymentProcessorRequest.card(paymentId, pan, expiry, amount, methodDetails);
             PaymentProcessorResponse response = paymentProcessorRouter.charge(paymentProcessorRequest);
             log.info("Vault charge registered, token={}****", token.substring(0, 4));

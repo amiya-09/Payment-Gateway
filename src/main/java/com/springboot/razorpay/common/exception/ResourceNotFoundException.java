@@ -7,8 +7,8 @@ public class ResourceNotFoundException extends RuntimeException {
     private final String resourceName;
     private final Object identifier;
 
-    // what resource was not found (resourceName)
-    // what identifier was used to search for the resource (identifier)
+    // resourceName: the type of resource that was missing.
+    // identifier: the lookup value used to find that resource.
 
     public ResourceNotFoundException(String resourceName, Object identifier) {
         super(resourceName+" not found with identifier: "+identifier);

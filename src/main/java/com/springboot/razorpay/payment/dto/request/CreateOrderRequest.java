@@ -11,7 +11,7 @@ public record CreateOrderRequest(
         @NotNull(message = "Amount is required")
         Money amount,
         @Size(max = 100, message = "Receipt length must be less than or equal to 100 characters")
-        String receipt, // order-id (known to merchant)
+        String receipt, // Merchant-provided order identifier.
         Map<String, Object> notes,
         LocalDateTime expiresAt
 

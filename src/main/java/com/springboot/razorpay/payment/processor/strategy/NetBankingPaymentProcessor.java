@@ -16,7 +16,7 @@ public class NetBankingPaymentProcessor implements PaymentProcessor {
         String bankCode = request.methodDetails() != null ?
                 request.methodDetails().get("bank").toString() : null;
 
-        // simulation
+        // Simulation rule: force failure for a specific test bank code.
         if(BANK_CODE_FAIL.equals(bankCode)){
             return new PaymentProcessorResponse.Failure("BANK_REJECTED",
                     "Bank rejected");

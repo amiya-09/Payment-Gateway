@@ -21,9 +21,8 @@ public class SimulatorConfig {
     private Map<String, MethodSimulatorConfig> methods = new HashMap<>();
 
     public SimulatorConfig.MethodSimulatorConfig configFor(PaymentMethod method){
-        // Here we are going to return the simulator config based upon a particular payment method that we request.
-        // And all that is going to be stored inside the hash map as well.
-        // If the config is not found for a method, we will return a default config.
+        // Return config for the requested payment method from the map.
+        // If missing, fall back to default simulator values.
         return methods.getOrDefault(method.name(), new MethodSimulatorConfig());
     }
 

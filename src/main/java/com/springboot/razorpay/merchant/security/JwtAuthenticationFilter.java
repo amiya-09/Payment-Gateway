@@ -16,6 +16,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @Slf4j
@@ -24,12 +25,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final HandlerExceptionResolver  handlerExceptionResolver;
+    private final MerchantContext merchantContext;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        // This method is going to intercept all the requests and check if the request has a valid JWT token
-        // in the Authorization header. If the token is valid, it will set the authentication in the SecurityContextHolder,
-        // allowing the request to proceed. If the token is invalid or missing, it will return an unauthorized response.
+        // Intercept requests and validate JWT from the Authorization header.
+        // If valid, set Authentication in SecurityContextHolder so the request is treated as authenticated.
+        // If missing/invalid, let downstream handlers resolve the outcome.
         log.info("Incoming request: {}", request.getRequestURI());
         try {
             final String authorizationHeader = request.getHeader("Authorization");
@@ -39,29 +41,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
             String jwtToken = authorizationHeader.split("Bearer ")[1];
-            // Authorization header looks like : Bearer amcwbfq4f9g.gmc2pxuucvuv.cruwcvbucqoa -> so when we split it -> {"Bearer ", "amcwbfq4f9g.gmc2pxuucvuv.cruwcvbucqoa"}
-            // Now we want to validate if this token is valid or not
+            // Header format: "Bearer <token>", so split to extract only the token value.
+            // Validate token signature/claims before creating authentication.
             Claims claims = jwtUtil.verifyAccessToken(jwtToken);
             if (claims != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 log.info("JWT token is valid. Claims: {}", claims);
-                // If the token is valid, we can set the authentication in the SecurityContextHolder
-                // so that the request can proceed.
-                // We can also set the user details in the SecurityContextHolder if needed.
+                // Token is valid, so attach Authentication to the security context.
+                // This lets downstream code treat the request as authenticated.
                 var auth = new UsernamePasswordAuthenticationToken(claims.getSubject(), null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + jwtUtil.extractRole(claims))));
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                merchantContext.setMerchantId(UUID.fromString(jwtUtil.extractMerchantId(claims)));
             }
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             handlerExceptionResolver.resolveException(request, response, null, e);
         }
     }
-    // This can be our normal JWT authentication filter, but this is not production ready, because we have not handled
-    // the exceptions here. When an exception occurs in this layer (inside the above filter chain), that does not get propagated to the spring MVC layer.
-    // In that case it won't be caught by the Global exception handler that we have created because these two are two different planes.
-    // Currently, our request is traveling inside the security filter chain. It has not propagated yet to the controller layer,
-    // all of this is happening before the controller layer is even invoked, so that's why we have to somehow
-    // transfer the exception from the security filter chain to the controller layer, so that it can be caught by the global exception handler.
-    // We use HandlerExceptionResolver to resolve the exception and propagate it to the controller layer, so that it can be caught by the global exception handler.
+    // Exceptions raised in the security filter chain do not automatically reach controller advice.
+    // This filter runs before controllers, so @RestControllerAdvice cannot catch these directly.
+    // HandlerExceptionResolver bridges this gap by routing security-layer exceptions into MVC handling.
+    // That keeps error responses consistent with global exception handling.
 }
-

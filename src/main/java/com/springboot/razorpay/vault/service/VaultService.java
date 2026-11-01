@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface VaultService {
-    // Here we can add the method to actually tokenize
+    // Tokenize raw card input and return a reusable token reference.
     TokenizeResponse tokenize(TokenizeRequest request, UUID merchantId);
 
     PaymentProcessorResponse charge(UUID paymentId, String token, Money amount, Map<String, Object> methodDetails);

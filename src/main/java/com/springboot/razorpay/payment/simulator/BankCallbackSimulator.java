@@ -25,8 +25,8 @@ public class BankCallbackSimulator {
     private final SimulatorConfig simulatorConfig;
 
     @Scheduled(fixedDelayString = "${payment.simulator.poll-interval-ms:5000}")
-    // This method is scheduled to run at a fixed delay, which is configurable via the application properties.
-    // The default delay is set to 5000 milliseconds (5 seconds).
+    // Runs at a fixed delay configured via properties.
+    // Default poll interval is 5000 ms (5 seconds).
     public void processCallbacks() {
         LocalDateTime globalWindow = LocalDateTime.now().minusSeconds(1);
         List<Payment> candidates = paymentRepository.findByStatusAndCreatedAtBefore(PaymentStatus.AUTHORIZING, globalWindow);
@@ -39,10 +39,10 @@ public class BankCallbackSimulator {
 
     private void simulateCallback(Payment payment) {
         SimulatorConfig.MethodSimulatorConfig methodConfig = simulatorConfig.configFor(payment.getMethod());
-        LocalDateTime dueAt = dueAt(payment, methodConfig); // This gives us the time when this payment should be processed
-        // meaning when it should go from authorizing state to the authorized state.
+        LocalDateTime dueAt = dueAt(payment, methodConfig); // Time at which this payment should be processed.
+        // In other words, when it can move from AUTHORIZING to resolved.
 
-        // If this payment has come too early, we will not process it and wait for the next scheduled cycle to process it.
+        // If not due yet, skip for now and let the next scheduler cycle handle it.
         if(LocalDateTime.now().isBefore(dueAt)) {
             return;
         }
@@ -51,7 +51,7 @@ public class BankCallbackSimulator {
             case SUCCESS -> resolve(payment, true);
             case FAILURE -> resolve(payment, false);
             case TIMEOUT -> {
-                // Do nothing, we are simulating a timeout scenario here
+                // Intentionally do nothing to simulate timeout behavior.
                 log.debug("BankCallback simulator: Payment Timed out");
             }
             case NORMAL, SLOW -> resolve(payment, shouldApprove(payment, methodConfig));
@@ -68,21 +68,19 @@ public class BankCallbackSimulator {
     }
 
     private boolean shouldApprove(Payment payment, SimulatorConfig.MethodSimulatorConfig methodConfig) {
-        int bucket = Math.abs(payment.getId().hashCode()) % 100; // Bucket is going to give me a number ranging between 0 and 99
-        // But this number would always remain the same for a particular payment object
+        int bucket = Math.abs(payment.getId().hashCode()) % 100; // Deterministic bucket in range [0, 99].
+        // This bucket remains stable for the same payment ID.
         return bucket < methodConfig.getSuccessRate();
-        // Suppose the success rate for this type of payment was 90%. In that case methodConfig.getSuccessRate() would return 90.
-        // So if the bucket is less than 90, we will approve it. Otherwise, we will reject it.
+        // Example: with successRate=90, buckets 0..89 approve and 90..99 reject.
     }
 
     private LocalDateTime dueAt(Payment payment, SimulatorConfig.MethodSimulatorConfig methodConfig) {
-        // This dueAt would basically give us the time when this payment should be processed
-        // When we are getting the payment object from the window, the payment itself is not due to be processed
-        // Maybe we will process it in the next go, in that case we are just going to check first, if it is due then we are going to process it
-        // Otherwise we are going to ignore it, and it can be processed in the next scheduled cycle
+        // Compute when this payment becomes eligible for callback simulation.
+        // A fetched payment may still be early, so we compare current time against this value.
+        // If not due, we skip it and process in a later scheduler run.
         int range = methodConfig.getMaxDelaySeconds() - methodConfig.getMinDelaySeconds();
-        int delaySeconds = methodConfig.getMinDelaySeconds() + Math.abs(payment.getId().hashCode()) % range; // What this does is :
-        // It's going to give me when this payment should be simulated
+        int delaySeconds = methodConfig.getMinDelaySeconds() + Math.abs(payment.getId().hashCode()) % range; // Deterministic per-payment delay.
+        // This determines the simulated callback time.
         if(simulatorConfig.getChaosMode() == ChaosMode.SLOW) {
             delaySeconds *= 2;
         }

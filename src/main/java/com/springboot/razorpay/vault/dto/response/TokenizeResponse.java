@@ -3,10 +3,8 @@ package com.springboot.razorpay.vault.dto.response;
 import com.springboot.razorpay.common.enums.CardBrand;
 
 public record TokenizeResponse (
-        // What do we want to return ?
-        // We want to return the actual token
-        // We want to tokenize our PAN, and we return that token here so that using this token they can again make an
-        // API call to initiate the card payment
+        // Return the generated token and card display metadata.
+        // Clients use this token in later card-payment API calls.
         String token,
         String lastFour,
         CardBrand brand,

@@ -16,7 +16,7 @@ public class UpiPaymentProcessor implements PaymentProcessor {
         String bankCode = request.methodDetails() != null ?
                 request.methodDetails().get("vpa").toString() : null;
 
-        // simulation
+        // Simulation rule: force failure for a specific test VPA.
         if(VPA_CODE_FAIL.equals(bankCode)){
             return new PaymentProcessorResponse.Failure("BANK_REJECTED",
                     "Bank rejected");

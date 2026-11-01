@@ -26,7 +26,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .subject(email)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(3600))) // 1 hour expiration
+                .expiration(Date.from(now.plusSeconds(3600))) // Access token expires in 1 hour.
                 .claim("merchantId", merchantId.toString())
                 .claim("role", role)
                 .signWith(getSecretKey())
@@ -43,5 +43,9 @@ public class JwtUtil {
 
     public String extractRole(Claims claims) {
         return claims.get("role",  String.class);
+    }
+
+    public String extractMerchantId(Claims claims) {
+        return claims.get("merchantId", String.class);
     }
 }

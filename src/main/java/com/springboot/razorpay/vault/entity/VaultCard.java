@@ -24,21 +24,21 @@ public class VaultCard extends BaseEntity {
     private String lastFour;
 
     @Column(length = 6, nullable = false)
-    private String bin; // first 6 digits of a card
+    private String bin; // First 6 digits of the card PAN.
 
     @Column(nullable = false)
     private byte[] encryptedPan;
 
     @Column(nullable = false)
-    private byte[] encryptedDek; // Dek is used to encrypt the PAN
-    // First Generate a random String of 6 digits - called as Dek, using the dek we first encrypt the PAN
-    // encrypted_pan = encrypt(PAN, DEK) , Now in future, we also need to decrypt the PAN
-    // encrypted_dek = encrypt(DEK, master_key) we encrypt the DEK using the master key,
-    // so that we can decrypt the DEK in future and then use the DEK to decrypt the PAN
-    // DEK = decrypt(encrypted_dek, master_key) , PAN = decrypt(encrypted_pan, DEK)
+    private byte[] encryptedDek; // DEK is used to encrypt/decrypt PAN.
+    // Flow:
+    // 1) Generate random DEK.
+    // 2) encrypted_pan = encrypt(PAN, DEK)
+    // 3) encrypted_dek = encrypt(DEK, master_key)
+    // 4) Later: DEK = decrypt(encrypted_dek, master_key), then PAN = decrypt(encrypted_pan, DEK)
 
     @Column(nullable = false)
-    private CardBrand brand; // brand of the card : VISA , RUPAY
+    private CardBrand brand; // Card network brand, e.g., VISA/RUPAY.
 
     @Column(nullable = false)
     private String expiryMonth;

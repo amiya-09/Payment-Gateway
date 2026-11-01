@@ -15,12 +15,11 @@ import java.util.UUID;
 @Component
 public class CardPaymentAdapter implements PaymentAdapter {
 
-    private final VaultService vaultService; // Using this vault service, we want to charge and for that we have
-    // to create the charge method
+    private final VaultService vaultService; // Use VaultService to process tokenized card charge.
 
     @Override
     public PaymentResult initiate(PaymentRequest request){
-        // Get the token from here
+        // Read token generated during card tokenization.
         String token = (String) request.methodDetails().get("token");
         PaymentProcessorResponse response = vaultService.charge(
                 request.paymentId(), token, request.amount(), request.methodDetails()

@@ -30,7 +30,7 @@ public class OrderRecord extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    // no FK - cross - service boundary
+    // No FK here; merchant entity belongs to another service boundary.
     @Column(name = "merchant_id", nullable = false)
     private UUID merchantId;
 
@@ -45,8 +45,8 @@ public class OrderRecord extends BaseEntity {
     private OrderStatus orderStatus = OrderStatus.CREATED;
 
     @Column(nullable = false)
-    @Builder.Default // if we don't add a builder.default ,
-    // it is not going to take the default value for the attempts which is 0 here
+    @Builder.Default // Without Builder.Default, Lombok builder will ignore this field initializer.
+    // So attempts would not default to 0 when using builder().
     private Integer attempts = 0;
 
     @JdbcTypeCode((SqlTypes.JSON))

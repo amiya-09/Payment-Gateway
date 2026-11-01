@@ -26,7 +26,7 @@ public class PaymentTransitionService {
                 .fromStatus(previous)
                 .toStatus(next)
                 .event(event)
-                .actor(PaymentActor.SYSTEM) // TODO : fetch merchant context to identify actor
+                .actor(PaymentActor.SYSTEM) // TODO: fetch merchant context to identify actual actor.
                 .occurredAt(LocalDateTime.now())
                 .build();
         payment.setStatus(next);

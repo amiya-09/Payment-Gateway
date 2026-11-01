@@ -29,7 +29,7 @@ public class NetBankingAdapter implements PaymentAdapter {
 
             PaymentProcessorResponse paymentProcessorResponse =
                     paymentProcessorRouter.charge(paymentProcessorRequest);
-            // Implementation for initiating net banking payment
+            // Convert processor response into gateway-level result.
             return switch (paymentProcessorResponse) {
                 case PaymentProcessorResponse.Failure failure ->
                         new PaymentResult.Failure(failure.errorCode(), failure.errorDescription());

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 
 @RestControllerAdvice
-// tracks all the exceptions that occur and have them put in a separate handle methods
+// Centralized place to map thrown exceptions to API error responses.
 public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateResources (DuplicateResourceException ex) {

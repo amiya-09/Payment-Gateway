@@ -29,7 +29,7 @@ public class UpiPaymentAdapter implements PaymentAdapter {
                     request.amount(), request.methodDetails());
             PaymentProcessorResponse paymentProcessorResponse =
                     paymentProcessorRouter.charge(paymentProcessorRequest);
-        // Implementation for initiating UPI payment
+            // Convert processor response into gateway-level result.
             return switch (paymentProcessorResponse) {
                 case PaymentProcessorResponse.Failure failure ->
                         new PaymentResult.Failure(failure.errorCode(), failure.errorDescription());

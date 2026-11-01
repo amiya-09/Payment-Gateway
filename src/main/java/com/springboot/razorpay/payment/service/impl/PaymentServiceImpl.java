@@ -40,8 +40,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponse initiate(UUID merchantId, PaymentInitRequest request) {
         OrderRecord order = orderRepository.findByIdAndMerchantId(request.orderId(), merchantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order" , request.orderId()));
-        // We got the orders from here, now we need to check whether these orders
-        // are in valid state or not --> ORDER_STATUS
+        // Validate that the order is currently eligible for payment initiation.
         if(order.getOrderStatus() != OrderStatus.CREATED && order.getOrderStatus() != OrderStatus.ATTEMPTED){
             throw new BusinessRuleViolationException("ORDER_NOT_PAYBLE",
                     "Order is not in valid state for payment initiation. Current status: "+ order.getOrderStatus());
@@ -82,7 +81,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
         payment =  paymentRepository.save(payment);
         orderRepository.save(order);
-        // TODO: send an outbox (kafka event)
+        // TODO: publish outbox event (Kafka).
         return paymentMapper.toPaymentResponse(payment);
     }
 
@@ -135,12 +134,12 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setAuthorizedAt(LocalDateTime.now());
             log.info("Payment authorization approved , paymentId: " + paymentId);
 
-            // Auto-capture
+            // Auto-capture immediately after successful authorization.
             paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_REQUEST);
             PaymentResult captureResult = paymentGatewayRouter.capture(payment.getMethod(), paymentId);
-            // So we get the response of payment capture
+            // Handle capture response.
             if(captureResult instanceof PaymentResult.Success success) {
-                // So if the capture was successful then we do the following:
+                // On capture success, mark payment captured and order paid.
                 paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_SUCCESS);
                 payment.setCapturedAt(LocalDateTime.now());
                 orderRecord.setOrderStatus(OrderStatus.PAID);
@@ -151,8 +150,7 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.setErrorDescription(failure.errorDescription());
             }
         } else {
-            // what if the payment was not approved on the bank's end,
-            // in that case we put the payment in the authorized fail state
+            // If bank declines authorization, move payment to authorization-failed state.
             paymentTransitionService.apply(payment, PaymentEvent.AUTHORIZE_FAIL);
             payment.setErrorCode(errorCode);
             payment.setErrorDescription(errorDescription);
@@ -161,7 +159,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
         orderRepository.save(orderRecord);
 
-        // TODO: send an outbox (kafka event)
+        // TODO: publish outbox event (Kafka).
     }
 
 }

@@ -43,9 +43,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse createOrder(UUID merchantId, CreateOrderRequest orderRequest) {
-        // We should first check that if the merchant has provided the receipt
-        // Then we should check if the receipt exists in the database or not
-        // and if it does then we should not create a new order
+        // If merchant sends a receipt, enforce uniqueness per merchant.
         if(orderRequest.receipt() != null && orderRepository.existsByMerchantIdAndReceipt(merchantId, orderRequest.receipt())){
             throw new DuplicateResourceException("ORDER_ALREADY_EXISTS", "Order with receipt "
                     + orderRequest.receipt() + " already exists for merchant " + merchantId);
@@ -76,10 +74,10 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderResponse getById(UUID merchantId, UUID orderId) {
-        // any merchant should not see other merchant's orders and that is why we have passed merchantId as well
+        // Scope read by merchantId so one merchant cannot access another merchant's order.
         OrderRecord order =  orderRepository.findByIdAndMerchantId(merchantId, orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("ORDER_NOT_FOUND", "Order with id " + orderId + " not found for merchant " + merchantId));
-        // now we have order, now we need to convert it into Order Response
+        // Convert entity to API response DTO.
 //        return new OrderResponse(
 //                order.getId(),
 //                order.getMerchantId(),
@@ -115,8 +113,8 @@ public class OrderServiceImpl implements OrderService {
 //        return paymentList.stream()
 //                .map(paymentMapper::toPaymentResponse)
 //                .collect(Collectors.toList());
-        // Map Struct can also convert a list of payments to a list of payment response
-        // In the PaymentMapper interface -- List<PaymentResponse> toPaymentResponseList(List<Payment> paymentList);
+        // MapStruct can also map lists directly.
+        // See PaymentMapper#toPaymentResponseList(List<Payment>).
         return paymentMapper.toPaymentResponseList(paymentList);
     }
 }

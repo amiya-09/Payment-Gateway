@@ -35,8 +35,8 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     public ApiKeyCreateResponse createApiKey(UUID merchantId, CreateApiKeyRequest request) {
         Merchant merchant = merchantRepository.findById(merchantId)
                 .orElseThrow(()->new ResourceNotFoundException("merchant" , merchantId));
-        // Here you would implement the logic to create an API key for the merchant.
-        // For demonstration purposes, let's assume we generate a random keyId and keySecret.
+        // Create a new API key pair for this merchant.
+        // For now, generate random keyId and raw secret values.
         String keyId = "rzp_"+request.environment().name().toLowerCase()+"_"+ RandomizerUtil.randomBase64(24);
         String rawSecret = RandomizerUtil.randomBase64(40);
         ApiKey apiKey = ApiKey.builder()
@@ -46,6 +46,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                 .environment(request.environment())
                 .build();
         apiKey = apiKeyRepository.save(apiKey);
+        log.info("API key successfully saved. ID: {}", apiKey.getId());
         return new ApiKeyCreateResponse(apiKey.getId(), keyId, rawSecret, request.environment());
     }
 
@@ -77,13 +78,13 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     @Override
     @Transactional
     public ApiKeyCreateResponse rotate(UUID merchantId, UUID keyId) {
-        // Check first if api key is here or not , throw an exception if not found
+        // Validate that this API key belongs to the merchant; otherwise throw not found.
         ApiKey apiKey = apiKeyRepository.findById(keyId)
                 .filter(key -> key.getMerchant().getId().equals(merchantId))
                 .orElseThrow(() -> new ResourceNotFoundException("apiKey", keyId));
 
         if(!apiKey.isEnabled()) throw new RuntimeException("Cannot rotate a disabled apiKey");
-        // Now we generate a new secret key and send it over to the merchant
+        // Generate and return a new secret for rotation.
         String newRawSecret = RandomizerUtil.randomBase64(40);
         apiKey.setPreviousKeySecretHash(apiKey.getKeySecretHash());
         apiKey.setKeySecretHash(newRawSecret);
