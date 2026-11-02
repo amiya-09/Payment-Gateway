@@ -1,6 +1,9 @@
 package com.springboot.razorpay.merchant.security;
 
 
+import com.springboot.razorpay.common.exception.RateLimitException;
+import com.springboot.razorpay.common.ratelimit.RateLimitResult;
+import com.springboot.razorpay.common.ratelimit.RateLimiter;
 import com.springboot.razorpay.merchant.cache.ApiKeyCache;
 import com.springboot.razorpay.merchant.cache.ApiKeyCacheEntry;
 import com.springboot.razorpay.merchant.entity.ApiKey;
@@ -12,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -40,6 +44,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final MerchantContext merchantContext;
     private final HandlerExceptionResolver handlerExceptionResolver;
     private final ApiKeyCache apiKeyCache;
+    private final RateLimiter rateLimiter;
+
+    @Value("${app.rate-limit.use-case.api-key.requests-per-minute:60}")
+    private Integer requestsPerMinute;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -70,6 +78,18 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             if(apiKeyEntry == null || !apiKeyEntry.enabled() || !validateApiKey(apiKeyEntry, rawSecret)){
                 throw new BadRequestException("Invalid or missing API Key");
             }
+
+            // Rate limiting check
+            RateLimitResult rateLimitResult = rateLimiter.check("apikey:"+keyId, requestsPerMinute, 60); // Example: 100 requests per 60 seconds
+
+            if (!rateLimitResult.isAllowed()) {
+                log.warn("Too many requests keyId={}",  keyId);
+                throw new RateLimitException("Too many requests", rateLimitResult.retryAfterSeconds());
+            }
+
+            response.setHeader("X-RateLimit-Limit", String.valueOf(requestsPerMinute));
+            response.setHeader("X-RateLimit-Remaining", String.valueOf(rateLimitResult.remaining()));
+
             log.info("API Key is valid. Key ID: {}", keyId);
             var auth = new UsernamePasswordAuthenticationToken(keyId, null,
                     List.of(new SimpleGrantedAuthority("API_KEY_ROLE")));

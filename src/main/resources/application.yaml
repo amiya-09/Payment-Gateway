@@ -43,3 +43,25 @@ payment:
 
 jwt:
   secret-key: dont-use-in-prod-a9t59bty5vtb59v986tv5b9wvb5a9bqvfaobvab576vbc7n4x38mz2n8mb69v
+
+app:
+  rate-limit:
+    method: fixed
+    use-case:
+      api-key:
+        requests-per-minute: 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
