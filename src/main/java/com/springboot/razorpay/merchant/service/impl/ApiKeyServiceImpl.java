@@ -2,6 +2,7 @@ package com.springboot.razorpay.merchant.service.impl;
 
 import com.springboot.razorpay.common.exception.ResourceNotFoundException;
 import com.springboot.razorpay.common.util.RandomizerUtil;
+import com.springboot.razorpay.merchant.cache.ApiKeyCache;
 import com.springboot.razorpay.merchant.dto.request.CreateApiKeyRequest;
 import com.springboot.razorpay.merchant.dto.response.ApiKeyCreateResponse;
 import com.springboot.razorpay.merchant.dto.response.ApiKeyResponse;
@@ -32,7 +33,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyMapper apiKeyMapper;
     private final PasswordEncoder passwordEncoder;
-//    private BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder();
+    private final ApiKeyCache apiKeyCache;
 
     @Override
     @Transactional
@@ -77,7 +78,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                 .filter(key -> key.getMerchant().getId().equals(merchantId))
                 .orElseThrow(() -> new ResourceNotFoundException("apiKey", keyId));
         apiKey.setEnabled(false);
-        apiKeyRepository.save(apiKey);
+        apiKeyCache.evict(apiKey.getKeyId());
     }
 
     @Override
@@ -95,7 +96,10 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         apiKey.setKeySecretHash(passwordEncoder.encode(newRawSecret));
         apiKey.setRotatedAt(LocalDateTime.now());
         apiKey.setGracePeriodExpiresAt(LocalDateTime.now().plusHours(24)); // Set grace period for 24 hours
-        apiKeyRepository.save(apiKey);
+        apiKey = apiKeyRepository.save(apiKey);
+
+        apiKeyCache.evict(apiKey.getKeyId());
+
         return new ApiKeyCreateResponse(apiKey.getId(), apiKey.getKeyId(), newRawSecret, apiKey.getEnvironment());
     }
 }

@@ -5,6 +5,11 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/razorpayDB}
     username: ${DB_USER:}
     password: ${DB_PASS:}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: update
@@ -14,7 +19,8 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 vault:
-  master-key: abr2489yhg39847ygg934yu34tv9bt67bvtg534bgtv
+  master-key: Ua3qMvt9R6E6rfUYHD5wj72HooXHB6sjXIMmBzhk5pg=
+
 
 # These are my configurations for simulator. You can change the values to test different scenarios.
 payment:

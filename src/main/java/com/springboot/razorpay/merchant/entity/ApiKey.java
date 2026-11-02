@@ -54,4 +54,8 @@ public class ApiKey extends BaseEntity {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    public boolean isInGracePeriod() {
+        return gracePeriodExpiresAt != null && gracePeriodExpiresAt.isBefore(LocalDateTime.now());
+    }
+
 }

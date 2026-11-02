@@ -1,6 +1,8 @@
 package com.springboot.razorpay.merchant.security;
 
 
+import com.springboot.razorpay.merchant.cache.ApiKeyCache;
+import com.springboot.razorpay.merchant.cache.ApiKeyCacheEntry;
 import com.springboot.razorpay.merchant.entity.ApiKey;
 import com.springboot.razorpay.merchant.repository.ApiKeyRepository;
 import jakarta.servlet.FilterChain;
@@ -34,10 +36,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String BASIC_PREFIX = "Basic ";
     private final ApiKeyRepository apiKeyRepository;
-//    private final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder();
     private final PasswordEncoder passwordEncoder;
     private final MerchantContext merchantContext;
     private final HandlerExceptionResolver handlerExceptionResolver;
+    private final ApiKeyCache apiKeyCache;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -62,17 +64,18 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             }
             String keyId = credentials[0];
             String rawSecret = credentials[1];
-            ApiKey apiKey = apiKeyRepository.findByKeyId(keyId)
-                    .orElseThrow(() -> new BadRequestException("Invalid or missing API Key"));
-            if(!apiKey.isEnabled() || !validateApiKey(apiKey, rawSecret)){
+
+            ApiKeyCacheEntry apiKeyEntry = apiKeyCache.get(keyId).orElseGet(() -> loadAndCache(keyId));
+
+            if(apiKeyEntry == null || !apiKeyEntry.enabled() || !validateApiKey(apiKeyEntry, rawSecret)){
                 throw new BadRequestException("Invalid or missing API Key");
             }
             log.info("API Key is valid. Key ID: {}", keyId);
             var auth = new UsernamePasswordAuthenticationToken(keyId, null,
                     List.of(new SimpleGrantedAuthority("API_KEY_ROLE")));
             SecurityContextHolder.getContext().setAuthentication(auth);
-            merchantContext.setMerchantId(apiKey.getMerchant().getId());
-            merchantContext.setKeyId(apiKey.getKeyId());
+            merchantContext.setMerchantId(apiKeyEntry.merchantId());
+            merchantContext.setKeyId(apiKeyEntry.keyId());
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             log.error("Error during API Key authentication", e);
@@ -80,17 +83,35 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    private boolean validateApiKey(ApiKey apiKey, String rawSecret) {
+    private ApiKeyCacheEntry loadAndCache(String keyId) {
+        // Implement your logic to load the API key from the database and cache it
+        // For example, you might fetch the API key from a repository and then cache it
+        ApiKey apiKey = apiKeyRepository.findByKeyId(keyId).orElse(null);
+        if(apiKey == null) {
+            return null;
+        }
+        ApiKeyCacheEntry apiKeyCacheEntry = new ApiKeyCacheEntry(
+                apiKey.getKeyId(),
+                apiKey.getKeySecretHash(),
+                apiKey.getPreviousKeySecretHash(),
+                apiKey.getGracePeriodExpiresAt(),
+                apiKey.getMerchant().getId(),
+                apiKey.getEnvironment(),
+                apiKey.isEnabled()
+        );
+        apiKeyCache.put(keyId, apiKeyCacheEntry);
+        return apiKeyCacheEntry;
+    }
+
+    private boolean validateApiKey(ApiKeyCacheEntry apiKey, String rawSecret) {
         // Implement your API key validation logic here
         // For example, you might check if the rawSecret matches the stored secret for the given apiKey
-        if(passwordEncoder.matches(rawSecret, apiKey.getKeySecretHash())){
+        if(passwordEncoder.matches(rawSecret, apiKey.keySecretHash())){
             return true;
         }
-        boolean isInGracePeriod = apiKey.getGracePeriodExpiresAt() != null &&
-                apiKey.getGracePeriodExpiresAt().isAfter(LocalDateTime.now());
-        return isInGracePeriod
-                && apiKey.getPreviousKeySecretHash() != null
-                && passwordEncoder.matches(rawSecret, apiKey.getPreviousKeySecretHash());
+        return apiKey.isInGracePeriod()
+                && apiKey.previousKeySecretHash() != null
+                && passwordEncoder.matches(rawSecret, apiKey.previousKeySecretHash());
     }
 
     private String[] decode(String authorizationHeader) {
