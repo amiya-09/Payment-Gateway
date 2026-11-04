@@ -4,6 +4,7 @@ import com.springboot.razorpay.common.enums.OrderStatus;
 import com.springboot.razorpay.common.exception.BusinessRuleViolationException;
 import com.springboot.razorpay.common.exception.DuplicateResourceException;
 import com.springboot.razorpay.common.exception.ResourceNotFoundException;
+import com.springboot.razorpay.merchant.service.CustomerService;
 import com.springboot.razorpay.payment.dto.request.CreateOrderRequest;
 import com.springboot.razorpay.payment.dto.response.OrderResponse;
 import com.springboot.razorpay.payment.dto.response.PaymentResponse;
@@ -39,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
     private final OrderMapper orderMapper;
+    private final CustomerService customerService;
 
     @Override
     @Transactional
@@ -48,11 +50,18 @@ public class OrderServiceImpl implements OrderService {
             throw new DuplicateResourceException("ORDER_ALREADY_EXISTS", "Order with receipt "
                     + orderRequest.receipt() + " already exists for merchant " + merchantId);
         }
+
+        UUID customerId = null;
+        if(orderRequest.customer() != null){
+            customerId = customerService.findOrCreate(merchantId, orderRequest.customer().email(), orderRequest.customer().name(), orderRequest.customer().phone());
+        }
+
         OrderRecord orderRecord = OrderRecord.builder()
                 .receipt(orderRequest.receipt())
                 .amount(orderRequest.amount())
                 .notes(orderRequest.notes())
                 .merchantId(merchantId)
+                .customerId(customerId)
                 .orderStatus(OrderStatus.CREATED)
                 .expiresAt(orderRequest.expiresAt()!=null ? orderRequest.expiresAt() : LocalDateTime.now().plusMinutes(defaultOrderExpiryMinutes))
                 .build();

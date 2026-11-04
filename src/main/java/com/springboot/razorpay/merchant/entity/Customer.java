@@ -33,7 +33,7 @@ public class Customer extends BaseEntity {
     private String email;
 
     @Column(length = 20)
-    private String contactNumber;
+    private String phone;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
