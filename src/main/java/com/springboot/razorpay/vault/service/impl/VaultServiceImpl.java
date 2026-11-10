@@ -73,6 +73,7 @@ public class VaultServiceImpl implements VaultService {
     }
 
     @Override
+    @Transactional
     public PaymentProcessorResponse charge(UUID paymentId, String token, Money amount, Map<String, Object> methodDetails) {
         // Resolve token, then decrypt card data needed by the processor.
         CardToken cardToken = cardTokenRepository.findByTokenAndRevokedAtIsNull(token)

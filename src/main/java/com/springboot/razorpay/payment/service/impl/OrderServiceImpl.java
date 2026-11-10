@@ -1,5 +1,6 @@
 package com.springboot.razorpay.payment.service.impl;
 
+import com.springboot.razorpay.common.enums.EventAggregateType;
 import com.springboot.razorpay.common.enums.OrderStatus;
 import com.springboot.razorpay.common.exception.BusinessRuleViolationException;
 import com.springboot.razorpay.common.exception.DuplicateResourceException;
@@ -12,6 +13,7 @@ import com.springboot.razorpay.payment.entity.OrderRecord;
 import com.springboot.razorpay.payment.entity.Payment;
 import com.springboot.razorpay.payment.mapper.OrderMapper;
 import com.springboot.razorpay.payment.mapper.PaymentMapper;
+import com.springboot.razorpay.payment.outbox.OutboxEventPublisher;
 import com.springboot.razorpay.payment.repository.OrderRepository;
 import com.springboot.razorpay.payment.repository.PaymentRepository;
 import com.springboot.razorpay.payment.service.OrderService;
@@ -41,6 +43,7 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentMapper paymentMapper;
     private final OrderMapper orderMapper;
     private final CustomerService customerService;
+    private final OutboxEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -78,6 +81,13 @@ public class OrderServiceImpl implements OrderService {
 //                orderRecord.getExpiresAt(),
 //                null
 //        );
+        eventPublisher.publish(EventAggregateType.ORDER, orderRecord.getId(), "ORDER_CREATED",
+                OutboxEventPublisher.payload("orderId", orderRecord.getId(),
+                        "merchantId", merchantId.toString(),
+                        "orderStatus", orderRecord.getOrderStatus().name(),
+                        "amountUnits", orderRecord.getAmount().getAmountUnits(),
+                        "amountCurrency", orderRecord.getAmount().getCurrency())
+        );
         return orderMapper.toOrderResponse(orderRecord);
     }
 
@@ -111,6 +121,13 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setOrderStatus(OrderStatus.CANCELLED);
         order = orderRepository.save(order);
+        eventPublisher.publish(EventAggregateType.ORDER, order.getId(), "ORDER_CANCELLED",
+                OutboxEventPublisher.payload("orderId", order.getId(),
+                        "merchantId", merchantId.toString(),
+                        "orderStatus", order.getOrderStatus().name(),
+                        "amountUnits", order.getAmount().getAmountUnits(),
+                        "amountCurrency", order.getAmount().getCurrency())
+        );
         return orderMapper.toOrderResponse(order);
     }
 

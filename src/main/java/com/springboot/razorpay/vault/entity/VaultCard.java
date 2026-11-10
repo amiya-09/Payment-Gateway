@@ -37,6 +37,7 @@ public class VaultCard extends BaseEntity {
     // 3) encrypted_dek = encrypt(DEK, master_key)
     // 4) Later: DEK = decrypt(encrypted_dek, master_key), then PAN = decrypt(encrypted_pan, DEK)
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CardBrand brand; // Card network brand, e.g., VISA/RUPAY.
 

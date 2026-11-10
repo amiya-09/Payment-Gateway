@@ -1,5 +1,6 @@
 package com.springboot.razorpay.payment.service.impl;
 
+import com.springboot.razorpay.common.enums.EventAggregateType;
 import com.springboot.razorpay.common.enums.OrderStatus;
 import com.springboot.razorpay.common.enums.PaymentEvent;
 import com.springboot.razorpay.common.enums.PaymentStatus;
@@ -13,6 +14,7 @@ import com.springboot.razorpay.payment.gateway.PaymentGatewayRouter;
 import com.springboot.razorpay.payment.gateway.dto.PaymentRequest;
 import com.springboot.razorpay.payment.gateway.dto.PaymentResult;
 import com.springboot.razorpay.payment.mapper.PaymentMapper;
+import com.springboot.razorpay.payment.outbox.OutboxEventPublisher;
 import com.springboot.razorpay.payment.repository.OrderRepository;
 import com.springboot.razorpay.payment.repository.PaymentRepository;
 import com.springboot.razorpay.payment.service.PaymentService;
@@ -35,6 +37,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentGatewayRouter paymentGatewayRouter;
     private final PaymentMapper paymentMapper;
     private final PaymentTransitionService paymentTransitionService;
+    private final OutboxEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -87,7 +90,15 @@ public class PaymentServiceImpl implements PaymentService {
         }
         payment =  paymentRepository.save(payment);
         orderRepository.save(order);
-        // TODO: publish outbox event (Kafka).
+        eventPublisher.publish(EventAggregateType.PAYMENT, payment.getId(), "PAYMENT_CREATED",
+                OutboxEventPublisher.payload("orderId", order.getId().toString(),
+                        "paymentId", payment.getId().toString(),
+                        "merchantId", merchantId.toString(),
+                        "paymentStatus", payment.getStatus().name(),
+                        "amountUnits", order.getAmount().getAmountUnits(),
+                        "amountCurrency", order.getAmount().getCurrency(),
+                        "paymentMethod", payment.getMethod())
+        );
         return paymentMapper.toPaymentResponse(payment);
     }
 
@@ -121,6 +132,16 @@ public class PaymentServiceImpl implements PaymentService {
             log.warn("Payment capture failed , paymentId: " + paymentId);
         }
         payment =  paymentRepository.save(payment);
+
+        eventPublisher.publish(EventAggregateType.PAYMENT, payment.getId(), "PAYMENT_STATUS_CHANGED",
+                OutboxEventPublisher.payload("orderId", payment.getOrder().getId().toString(),
+                        "paymentId", payment.getId().toString(),
+                        "merchantId", payment.getMerchantId().toString(),
+                        "paymentStatus", payment.getStatus().name(),
+                        "amountUnits", payment.getAmount().getAmountUnits(),
+                        "amountCurrency", payment.getAmount().getCurrency(),
+                        "paymentMethod", payment.getMethod())
+        );
 
         return paymentMapper.toPaymentResponse(payment);
     }
@@ -171,8 +192,15 @@ public class PaymentServiceImpl implements PaymentService {
         }
         paymentRepository.save(payment);
         orderRepository.save(orderRecord);
-
-        // TODO: publish outbox event (Kafka).
+        eventPublisher.publish(EventAggregateType.PAYMENT, payment.getId(), "PAYMENT_STATUS_CHANGED",
+                OutboxEventPublisher.payload("orderId", payment.getOrder().getId().toString(),
+                        "paymentId", payment.getId().toString(),
+                        "merchantId", payment.getMerchantId().toString(),
+                        "paymentStatus", payment.getStatus().name(),
+                        "amountUnits", payment.getAmount().getAmountUnits(),
+                        "amountCurrency", payment.getAmount().getCurrency(),
+                        "paymentMethod", payment.getMethod())
+        );
     }
 
 }
