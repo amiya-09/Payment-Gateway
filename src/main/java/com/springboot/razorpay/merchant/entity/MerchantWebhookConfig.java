@@ -29,11 +29,24 @@ public class MerchantWebhookConfig extends BaseEntity {
     private String targetUrl;
 
     @Column(name = "webhook_secret_hash", length = 255)
-    private String webhookSecretHash;
+    private String webhookSecret;
 
     @Column(nullable = false)
     private Boolean enabled;
 
     @Column(length = 500)
     private String eventTypes;
+
+    public boolean isSubscribedToEvent(String eventType) {
+        if (eventTypes == null || eventTypes.isBlank()) {
+            return true;
+        }
+        String[] events = eventTypes.split(",");
+        for (String event : events) {
+            if (event.trim().equalsIgnoreCase(eventType) || event.trim().equalsIgnoreCase("ALL")) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

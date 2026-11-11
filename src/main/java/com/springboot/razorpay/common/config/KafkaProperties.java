@@ -1,16 +1,22 @@
 package com.springboot.razorpay.common.config;
 
 import com.springboot.razorpay.common.enums.EventAggregateType;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.Map;
 
-@Component
+@Configuration
 @ConfigurationProperties(prefix = "app.kafka")
-public record KafkaProperties (
-        Map<String, String> topics
-){
+@Getter
+@Setter
+public class KafkaProperties {
+
+    private Map<String, String> topics = new HashMap<>();
     public String topicFor(EventAggregateType aggregateType) {
         String topic = topics.get(aggregateType.name().toLowerCase());
         if(topic == null){
@@ -19,3 +25,4 @@ public record KafkaProperties (
         return topic;
     }
 }
+

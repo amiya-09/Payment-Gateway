@@ -27,10 +27,10 @@ public class VaultEncryptionConfig {
 
     // Shared bean that encrypts/decrypts DEKs using a single configured master key.
     // It is application-wide because all DEKs are wrapped with the same master key.
-    @Bean
-    public BytesEncryptor dekEncryptor() {
-        byte[] masterKeyBytes = Base64.getDecoder().decode(masterKey);
-        SecretKeySpec masterDecKey = new SecretKeySpec(masterKeyBytes, "AES");
-        return new AesBytesEncryptor(masterDecKey, KeyGenerators.secureRandom(12), AesBytesEncryptor.CipherAlgorithm.GCM);
-    }
+//    @Bean
+//    public BytesEncryptor dekEncryptor() {
+//        byte[] masterKeyBytes = Base64.getDecoder().decode(masterKey);
+//        SecretKeySpec masterDecKey = new SecretKeySpec(masterKeyBytes, "AES");
+//        return new AesBytesEncryptor(masterDecKey, KeyGenerators.secureRandom(12), AesBytesEncryptor.CipherAlgorithm.GCM);
+//    }
 }
