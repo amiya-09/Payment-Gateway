@@ -26,6 +26,7 @@ public class WebhookDeliverExecutor {
     private final WebhookEventRepository webhookEventRepository;
     private final WebhookRetryQueue webhookRetryQueue;
     private final RestClient restClient;
+    private final WebhookDlqRecorder webhookDlqRecorder;
 
     private static final List<Duration> BACKOFF = List.of(
             Duration.ofMinutes(1),
@@ -75,6 +76,7 @@ public class WebhookDeliverExecutor {
             if(response.getStatusCode().is2xxSuccessful()) {
                 event.setStatus(WebhookEventStatus.DELIVERED);
                 event.setDeliveredAt(LocalDateTime.now());
+                log.info(String.format("Webhook event with id %s delivered", webhookEventId));
                 webhookEventRepository.save(event);
                 return;
             }
@@ -93,6 +95,7 @@ public class WebhookDeliverExecutor {
         if(event.getAttempts() >= MAX_ATTEMPTS) {
             event.setStatus(WebhookEventStatus.DEAD);
             // DLQ Recordings
+            webhookDlqRecorder.recordAfterAttemptExhausted(event, error);
             return;
         }
 
@@ -102,6 +105,7 @@ public class WebhookDeliverExecutor {
         event.setNextRetryAt(nextRetryAt);
         webhookEventRepository.save(event);
         webhookRetryQueue.enqueue(event.getId(), nextRetryAt);
+        log.error("Handling attempt failed for event with attempts: {}, Next Retry at: {}, id {}: {}", event.getAttempts(), nextRetryAt, event.getId(), error);
     }
 
 }

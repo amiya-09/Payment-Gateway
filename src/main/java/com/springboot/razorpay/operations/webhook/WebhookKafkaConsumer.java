@@ -9,9 +9,11 @@ import com.springboot.razorpay.operations.repository.WebhookEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.dao.DataAccessException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.CannotCreateTransactionException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
@@ -29,6 +31,7 @@ public class WebhookKafkaConsumer {
     private final SignerUtil signerUtil;
     private final WebhookEventRepository webhookEventRepository;
     private final WebhookRetryQueue retryQueue;
+    private final WebhookDlqRecorder dlqRecorder;
 
     @KafkaListener(topics = {
             "${app.kafka.topics.payment:payment.events}",
@@ -82,13 +85,16 @@ public class WebhookKafkaConsumer {
                 webhookEvent = webhookEventRepository.save(webhookEvent);
 
                 retryQueue.enqueue(webhookEvent.getId(), webhookEvent.getNextRetryAt());
+                log.info("Created a webhook event with id: {}",  webhookEvent.getId());
             }
 
             ack.acknowledge();
-        } catch (Exception e) {
-            log.error("Error processing webhook event from Kafka record, offset: {}", record.offset(), e);
+        } catch (DataAccessException | CannotCreateTransactionException dbDown) {
+            log.error("Database is down or not reachable, cannot process webhook event. Will retry later. Record: {}", record.offset(), dbDown);
             // Do not acknowledge the message, so it can be retried later.
-            // TODO : CHECK EXCEPTION FOR ACKNOWLEDGING
+        } catch (Exception logicError) {
+            dlqRecorder.recordConsumerFailed(record, logicError.getMessage());
+            ack.acknowledge();
         }
 
     }
