@@ -39,6 +39,10 @@ spring:
         retries: 3
         spring.json.add.type.headers: false
 
+  threads:
+    virtual:
+      enabled: true
+
 vault:
   master-key: Ua3qMvt9R6E6rfUYHD5wj72HooXHB6sjXIMmBzhk5pg=
 
