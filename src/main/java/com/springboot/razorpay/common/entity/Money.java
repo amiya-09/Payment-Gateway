@@ -15,7 +15,7 @@ public class Money {
     private int amountUnits;
     private String currency;
 
-    private static Money of(int amountUnits, String currency) {
+    public static Money of(int amountUnits, String currency) {
         return new Money(amountUnits, currency);
     }
 

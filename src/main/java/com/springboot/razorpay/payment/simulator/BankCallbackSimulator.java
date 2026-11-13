@@ -24,7 +24,7 @@ public class BankCallbackSimulator {
     private final PaymentService paymentService;
     private final SimulatorConfig simulatorConfig;
 
-    @Scheduled(fixedDelayString = "${payment.simulator.poll-interval-ms:5000}")
+    // @Scheduled(fixedDelayString = "${payment.simulator.poll-interval-ms:5000}")
     // Runs at a fixed delay configured via properties.
     // Default poll interval is 5000 ms (5 seconds).
     public void processCallbacks() {

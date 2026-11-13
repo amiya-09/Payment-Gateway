@@ -4,12 +4,18 @@ import com.springboot.razorpay.common.entity.BaseEntity;
 import com.springboot.razorpay.common.entity.Money;
 import com.springboot.razorpay.common.enums.SettlementStatus;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "settlement")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 public class Settlement extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,4 +57,6 @@ public class Settlement extends BaseEntity {
     private String bankReference;
 
     private LocalDateTime processedAt;
+
+    private String failureReason;
 }

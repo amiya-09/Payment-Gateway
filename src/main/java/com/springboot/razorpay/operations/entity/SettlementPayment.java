@@ -2,9 +2,15 @@ package com.springboot.razorpay.operations.entity;
 
 import com.springboot.razorpay.common.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "settlement_payment")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 public class SettlementPayment extends BaseEntity{
 
     @EmbeddedId
